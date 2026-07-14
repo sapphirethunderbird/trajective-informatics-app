@@ -16,8 +16,9 @@ export function CourseCard({ course, onOpen, onRemove }: Props) {
     <div className="group relative flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
       <button
         onClick={() => onRemove(course.id)}
-        className="absolute right-3 top-3 hidden h-6 w-6 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-red-500 group-hover:flex dark:hover:bg-slate-800"
-        title="Remove"
+        className="absolute right-3 top-3 flex h-6 w-6 items-center justify-center rounded-full text-slate-300 hover:bg-slate-100 hover:text-red-500 dark:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-red-400"
+        title="Remove ／ 削除"
+        aria-label={`Remove ${course.titleEn || course.titleJa}`}
       >
         ✕
       </button>

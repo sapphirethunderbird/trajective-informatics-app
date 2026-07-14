@@ -6,6 +6,7 @@ import { Legend } from './Legend';
 interface Props {
   course: Course;
   onBack: () => void;
+  onRemove: (id: string) => void;
 }
 
 function Field({ k, value }: { k: keyof typeof fieldLabels; value: string }) {
@@ -21,12 +22,20 @@ function Field({ k, value }: { k: keyof typeof fieldLabels; value: string }) {
   );
 }
 
-export function CourseDetail({ course, onBack }: Props) {
+export function CourseDetail({ course, onBack, onRemove }: Props) {
   return (
     <div className="space-y-5">
-      <button onClick={onBack} className="text-sm text-blue-600 hover:underline dark:text-blue-400">
-        ← Back to dashboard ／ 一覧へ
-      </button>
+      <div className="flex items-center justify-between">
+        <button onClick={onBack} className="text-sm text-blue-600 hover:underline dark:text-blue-400">
+          ← Back to dashboard ／ 一覧へ
+        </button>
+        <button
+          onClick={() => onRemove(course.id)}
+          className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-500 transition-colors hover:border-red-300 hover:text-red-600 dark:border-slate-700 dark:text-slate-400 dark:hover:border-red-800 dark:hover:text-red-400"
+        >
+          ✕ Remove ／ 削除
+        </button>
+      </div>
 
       <header className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <div className="text-xs font-medium uppercase tracking-wide text-blue-600 dark:text-blue-400">

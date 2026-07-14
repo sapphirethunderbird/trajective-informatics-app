@@ -67,6 +67,8 @@ export default function App() {
   };
 
   const removeCourse = (id: string) => {
+    const course = courses.find((c) => c.id === id);
+    if (course && !window.confirm(`Remove "${course.titleEn || course.titleJa}"? ／ この科目を削除しますか？`)) return;
     setCourses((prev) => prev.filter((c) => c.id !== id));
     if (selected === id) setSelected(null);
   };
@@ -154,7 +156,7 @@ export default function App() {
             </p>
           </div>
         ) : selectedCourse ? (
-          <CourseDetail course={selectedCourse} onBack={() => setSelected(null)} />
+          <CourseDetail course={selectedCourse} onBack={() => setSelected(null)} onRemove={removeCourse} />
         ) : view === 'skills' ? (
           <div className="grid items-start gap-6 lg:grid-cols-[1.7fr_1fr]">
             <SkillNetwork
