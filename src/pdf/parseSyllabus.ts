@@ -1,4 +1,13 @@
-import type { Course, WeekPlan, ALPoints, GradingItem, GoalAspect, WeekALMarks, ALColumn } from '../data/types';
+import type {
+  Course,
+  WeekPlan,
+  ALPoints,
+  GradingItem,
+  GoalAspect,
+  WeekALMarks,
+  ALColumn,
+  TextbookRef,
+} from '../data/types';
 import type { Row, Cell } from './rowCluster';
 import { classifyWeek } from './classifyWeek';
 
@@ -82,6 +91,17 @@ function sameRowRight(rows: Row[], label: string): string {
   return right?.str.trim() ?? '';
 }
 
+/** Labels that share a row with 区分 — a cell matching one of these is the next
+ *  column's header, not 区分's (usually empty) value. */
+const HEADER_LABELS =
+  /^(対象学生|対象年次|使用言語|単位数|メディア授業|授業区分|授業形態|YFL|AL（|開講|曜日時限|科目名|時間割番号|担当教員|特定科目区分|区分)/;
+
+/** Value to the right of a label on the same row, rejecting the next label. */
+function sameRowValue(rows: Row[], label: string): string {
+  const v = sameRowRight(rows, label);
+  return v && !HEADER_LABELS.test(v) ? v : '';
+}
+
 /** Value in a row below the label, aligned to (near) the label's x-position.
  *  Scans the next few rows because value rows can be interleaved. */
 function belowNearest(rows: Row[], label: string, xTol = 60, maxRows = 4): string {
@@ -94,6 +114,24 @@ function belowNearest(rows: Row[], label: string, xTol = 60, maxRows = 4): strin
       candidates.sort((a, b) => Math.abs(a.x - cell.x) - Math.abs(b.x - cell.x));
       return candidates[0].str.trim();
     }
+  }
+  return '';
+}
+
+/** Value below the label, bounded by the label's own column rather than a fixed
+ *  x-tolerance. Numeric values (単位数) are right-aligned in a wide column, so
+ *  they can sit 70+ units from a left-aligned label — too far for
+ *  `belowNearest`, but still inside the column that ends at the next label. */
+function belowInColumn(rows: Row[], label: string, maxRows = 4): string {
+  const found = findLabel(rows, label);
+  if (!found) return '';
+  const { rowIndex, cell } = found;
+  const nextLabel = rows[rowIndex].cells.find((c) => c.x > cell.x + 5);
+  const right = nextLabel ? nextLabel.x : Infinity;
+  const left = cell.x - 40;
+  for (let i = rowIndex + 1; i <= rowIndex + maxRows && i < rows.length; i++) {
+    const hit = rows[i].cells.filter((c) => c.x >= left && c.x < right);
+    if (hit.length) return hit[hit.length - 1].str.trim();
   }
   return '';
 }
@@ -331,6 +369,78 @@ function parseGradingText(text: string): GradingItem[] {
   return items;
 }
 
+// ---- Textbooks -----------------------------------------------------------
+
+/** Column x-positions in the 教科書/参考書 tables (see the sample PDFs):
+ *  ~37 kind (教科書/参考書), ~90 field label, ~129 value, ~415/519 ISBN & 出版年
+ *  labels with their values to the right. */
+const BOOK_VALUE_X = 110;
+const BOOK_RIGHT_X = 400;
+
+/** Value cell immediately right of a label cell on one row. */
+function rightOf(row: Row, label: string): string {
+  const i = row.cells.findIndex((c) => c.str.trim() === label);
+  if (i === -1) return '';
+  return row.cells[i + 1]?.str.trim() ?? '';
+}
+
+/** Parse one 教科書/参考書 section. Each book entry ends with its 著者名 row, so
+ *  the section rows split cleanly at those rows; a 書名 can wrap across the rows
+ *  above and below its own label. Rows left over after the last entry (or all
+ *  rows, when the section is just a 備考) become the note. */
+function parseBookSection(rows: Row[], defaultKind: TextbookRef['kind']): {
+  books: TextbookRef[];
+  note: string;
+} {
+  const books: TextbookRef[] = [];
+  const noteRows: Row[] = [];
+  let block: Row[] = [];
+
+  const flush = (authorRow: Row) => {
+    const entryRows = [...block, authorRow];
+    const kindCell = entryRows
+      .flatMap((r) => r.cells)
+      .find((c) => c.str.trim() === '教科書' || c.str.trim() === '参考書');
+    const title = block
+      .flatMap((r) => r.cells)
+      .filter((c) => c.x >= BOOK_VALUE_X && c.x < BOOK_RIGHT_X)
+      .map((c) => c.str.trim())
+      .join('')
+      .trim();
+    const isbn = block.map((r) => rightOf(r, 'ISBN')).find(Boolean) ?? '';
+    books.push({
+      kind: (kindCell?.str.trim() as TextbookRef['kind']) ?? defaultKind,
+      title,
+      author: rightOf(authorRow, '著者名'),
+      publisher: rightOf(authorRow, '出版社'),
+      year: rightOf(authorRow, '出版年'),
+      isbn,
+    });
+    block = [];
+  };
+
+  for (const row of rows) {
+    if (row.cells.some((c) => c.str.trim() === '著者名')) flush(row);
+    else block.push(row);
+  }
+  // Anything after the last entry (or the whole section when there were none).
+  noteRows.push(...block);
+
+  const note = noteRows
+    .map((r) =>
+      r.cells
+        .filter((c) => c.str.trim() !== '備考')
+        .map((c) => c.str.trim())
+        .join('')
+        .trim(),
+    )
+    .filter(Boolean)
+    .join('\n')
+    .trim();
+
+  return { books, note };
+}
+
 // ---- Goals by 観点 -------------------------------------------------------
 
 const ASPECT_RE = /^(知識・理解|思考・判断|関心・意欲|態度|技能・表現)の観点/;
@@ -430,10 +540,20 @@ export function parseSyllabus(rows: Row[]): Course {
   const gradingFinal = grading.length ? grading : parseGradingText(sectionText(sections, '成績評価法'));
   if (!gradingFinal.length) warnings.push('grading');
 
-  const creditsRaw = belowNearest(header, '単位数');
+  const creditsRaw = belowInColumn(header, '単位数') || belowNearest(header, '単位数');
   const credits = Number(creditsRaw.replace(/[^\d.]/g, '')) || 0;
+  if (!credits) warnings.push('credits');
 
   const goalRows = sections.find((s) => s.title === '授業の到達目標')?.rows ?? [];
+
+  const textbookSection = parseBookSection(
+    sections.find((s) => s.title === '教科書にかかわる情報')?.rows ?? [],
+    '教科書',
+  );
+  const referenceSection = parseBookSection(
+    sections.find((s) => s.title === '参考書にかかわる情報')?.rows ?? [],
+    '参考書',
+  );
 
   // Some templates label the overview section 概要 instead of 授業の目的と概要.
   const overview = sectionText(sections, '授業の目的と概要') || sectionText(sections, '概要');
@@ -452,12 +572,16 @@ export function parseSyllabus(rows: Row[]): Course {
     language: belowNearest(header, '使用言語'),
     instructor: belowNearest(header, '担当教員（責任）') || belowNearest(header, '担当教員'),
     targetYear: sameRowRight(header, '対象年次'),
+    division: sameRowValue(header, '特定科目区分') || sameRowValue(header, '区分'),
     overview,
     goals,
     goalAspects: parseGoalAspects(goalRows),
     weeks,
     al,
     grading: gradingFinal,
+    textbooks: [...textbookSection.books, ...referenceSection.books],
+    textbookNote: textbookSection.note,
+    referenceNote: referenceSection.note,
     keywords: splitList(sectionText(sections, 'キーワード')),
     sdgs: sectionText(sections, '持続可能な開発目標')
       .split('\n')

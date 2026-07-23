@@ -1,50 +1,66 @@
 import type { Course } from '../data/types';
-import { fieldLabels, workModeColors, workModeLabels } from '../data/labels';
+import { fieldLabels, workModeColors } from '../data/labels';
+import { useLang } from '../i18n/lang';
 import { ALPointsChart } from './ALPointsChart';
 import { Legend } from './Legend';
+import { RequirementSelect } from './RequirementSelect';
+import type { Requirement } from '../data/store';
 
 interface Props {
   course: Course;
+  requirement?: Requirement;
+  onSetRequirement: (id: string, value: Requirement | null) => void;
   onBack: () => void;
   onRemove: (id: string) => void;
 }
 
+const CARD =
+  'rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900';
+
 function Field({ k, value }: { k: keyof typeof fieldLabels; value: string }) {
+  const { pick } = useLang();
   if (!value) return null;
-  const l = fieldLabels[k];
   return (
     <div>
-      <dt className="text-xs font-medium text-slate-400">
-        {l.en} <span className="text-slate-300 dark:text-slate-600">{l.ja}</span>
-      </dt>
+      <dt className="text-xs font-medium text-slate-400">{pick(fieldLabels[k])}</dt>
       <dd className="text-sm text-slate-800 dark:text-slate-100">{value}</dd>
     </div>
   );
 }
 
-export function CourseDetail({ course, onBack, onRemove }: Props) {
+function CardTitle({ children }: { children: React.ReactNode }) {
+  return <h2 className="mb-2 font-semibold text-slate-800 dark:text-slate-100">{children}</h2>;
+}
+
+export function CourseDetail({ course, requirement, onSetRequirement, onBack, onRemove }: Props) {
+  const { t, lang, courseTitle } = useLang();
+  const secondaryTitle = lang === 'en' ? course.titleJa : course.titleEn;
+  const notes = [course.textbookNote, course.referenceNote].filter(Boolean);
+
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <button onClick={onBack} className="text-sm text-blue-600 hover:underline dark:text-blue-400">
-          ← Back to dashboard ／ 一覧へ
+          ← {t('back')}
         </button>
         <button
           onClick={() => onRemove(course.id)}
           className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-500 transition-colors hover:border-red-300 hover:text-red-600 dark:border-slate-700 dark:text-slate-400 dark:hover:border-red-800 dark:hover:text-red-400"
         >
-          ✕ Remove ／ 削除
+          ✕ {t('remove')}
         </button>
       </div>
 
-      <header className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <header className={CARD}>
         <div className="text-xs font-medium uppercase tracking-wide text-blue-600 dark:text-blue-400">
           {course.faculty} · {course.year} · {course.term}
         </div>
-        <h1 className="mt-1 text-2xl font-bold text-slate-800 dark:text-slate-100">
-          {course.titleEn || course.titleJa}
-        </h1>
-        <div className="text-slate-500 dark:text-slate-400">{course.titleJa}</div>
+        <h1 className="mt-1 text-2xl font-bold text-slate-800 dark:text-slate-100">{courseTitle(course)}</h1>
+        {secondaryTitle && <div className="text-slate-500 dark:text-slate-400">{secondaryTitle}</div>}
+
+        <div className="mt-3">
+          <RequirementSelect course={course} value={requirement} onChange={onSetRequirement} />
+        </div>
 
         <dl className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
           <Field k="schedule" value={course.schedule} />
@@ -59,19 +75,19 @@ export function CourseDetail({ course, onBack, onRemove }: Props) {
       {(course.overview || course.goals) && (
         <section className="grid gap-4 md:grid-cols-2">
           {course.overview && (
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-              <h2 className="mb-2 font-semibold text-slate-800 dark:text-slate-100">
-                {fieldLabels.overview.en} <span className="text-sm font-normal text-slate-400">{fieldLabels.overview.ja}</span>
-              </h2>
-              <p className="whitespace-pre-line text-sm leading-relaxed text-slate-600 dark:text-slate-300">{course.overview}</p>
+            <div className={CARD}>
+              <CardTitle>{t('field.overview')}</CardTitle>
+              <p className="whitespace-pre-line text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+                {course.overview}
+              </p>
             </div>
           )}
           {course.goals && (
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-              <h2 className="mb-2 font-semibold text-slate-800 dark:text-slate-100">
-                {fieldLabels.goals.en} <span className="text-sm font-normal text-slate-400">{fieldLabels.goals.ja}</span>
-              </h2>
-              <p className="whitespace-pre-line text-sm leading-relaxed text-slate-600 dark:text-slate-300">{course.goals}</p>
+            <div className={CARD}>
+              <CardTitle>{t('field.goals')}</CardTitle>
+              <p className="whitespace-pre-line text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+                {course.goals}
+              </p>
             </div>
           )}
         </section>
@@ -79,30 +95,31 @@ export function CourseDetail({ course, onBack, onRemove }: Props) {
 
       <section className="grid gap-4 lg:grid-cols-3">
         {/* Weekly plan */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 lg:col-span-2">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="font-semibold text-slate-800 dark:text-slate-100">
-              {fieldLabels.weeks.en} <span className="text-sm font-normal text-slate-400">{fieldLabels.weeks.ja}</span>
-            </h2>
-          </div>
+        <div className={`${CARD} lg:col-span-2`}>
+          <CardTitle>{t('field.weeks')}</CardTitle>
           <Legend />
           <ol className="mt-3 space-y-1">
             {course.weeks.map((w) => (
-              <li key={w.week} className="flex items-start gap-3 rounded-lg px-2 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800/60">
+              <li
+                key={w.week}
+                className="flex items-start gap-3 rounded-lg px-2 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800/60"
+              >
                 <span className="mt-0.5 w-8 shrink-0 text-right text-sm tabular-nums text-slate-400">{w.week}</span>
                 <span
                   className="mt-1 h-3 w-3 shrink-0 rounded-sm"
                   style={{ backgroundColor: workModeColors[w.mode] }}
-                  title={workModeLabels[w.mode].en}
+                  title={t(`mode.${w.mode}`)}
                 />
                 <div className="min-w-0">
                   <div className="text-sm font-medium text-slate-800 dark:text-slate-100">
                     {w.title}
                     <span className="ml-2 text-xs font-normal" style={{ color: workModeColors[w.mode] }}>
-                      {workModeLabels[w.mode].en}
+                      {t(`mode.${w.mode}`)}
                     </span>
                   </div>
-                  {w.content && <div className="text-xs text-slate-500 dark:text-slate-400">{w.content.replace(/\n/g, ' · ')}</div>}
+                  {w.content && (
+                    <div className="text-xs text-slate-500 dark:text-slate-400">{w.content.replace(/\n/g, ' · ')}</div>
+                  )}
                   {w.outsideStudy && <div className="text-[11px] text-slate-400">⌛ {w.outsideStudy}</div>}
                 </div>
               </li>
@@ -110,20 +127,16 @@ export function CourseDetail({ course, onBack, onRemove }: Props) {
           </ol>
         </div>
 
-        {/* Side: AL + grading + keywords */}
+        {/* Side: AL + grading + textbooks + keywords */}
         <div className="space-y-4">
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-            <h2 className="mb-3 font-semibold text-slate-800 dark:text-slate-100">
-              {fieldLabels.al.en} <span className="text-sm font-normal text-slate-400">{fieldLabels.al.ja}</span>
-            </h2>
+          <div className={CARD}>
+            <CardTitle>{t('field.al')}</CardTitle>
             <ALPointsChart al={course.al} size={140} />
           </div>
 
           {course.grading.length > 0 && (
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-              <h2 className="mb-3 font-semibold text-slate-800 dark:text-slate-100">
-                {fieldLabels.grading.en} <span className="text-sm font-normal text-slate-400">{fieldLabels.grading.ja}</span>
-              </h2>
+            <div className={CARD}>
+              <CardTitle>{t('field.grading')}</CardTitle>
               <ul className="space-y-2">
                 {course.grading.map((g) => (
                   <li key={g.label}>
@@ -140,21 +153,55 @@ export function CourseDetail({ course, onBack, onRemove }: Props) {
             </div>
           )}
 
+          {(course.textbooks.length > 0 || notes.length > 0) && (
+            <div className={CARD}>
+              <CardTitle>{t('textbooks')}</CardTitle>
+              {course.textbooks.length > 0 ? (
+                <ul className="space-y-2">
+                  {course.textbooks.map((b, i) => (
+                    <li key={`${b.title}-${i}`} className="text-sm">
+                      <span
+                        className={`mr-1.5 rounded px-1.5 py-0.5 text-[11px] ${
+                          b.kind === '教科書'
+                            ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200'
+                            : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
+                        }`}
+                      >
+                        {b.kind}
+                      </span>
+                      <span className="text-slate-800 dark:text-slate-100">{b.title}</span>
+                      <div className="text-xs text-slate-400">
+                        {[b.author, b.publisher, b.year].filter(Boolean).join(' · ')}
+                        {b.isbn && ` · ISBN ${b.isbn}`}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              {notes.map((n) => (
+                <p key={n} className="mt-2 whitespace-pre-line text-xs text-slate-500 dark:text-slate-400">
+                  {n}
+                </p>
+              ))}
+            </div>
+          )}
+
           {course.keywords.length > 0 && (
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-              <h2 className="mb-2 font-semibold text-slate-800 dark:text-slate-100">
-                {fieldLabels.keywords.en} <span className="text-sm font-normal text-slate-400">{fieldLabels.keywords.ja}</span>
-              </h2>
+            <div className={CARD}>
+              <CardTitle>{t('field.keywords')}</CardTitle>
               <div className="flex flex-wrap gap-1.5">
                 {course.keywords.map((k) => (
-                  <span key={k} className="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                  <span
+                    key={k}
+                    className="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+                  >
                     {k}
                   </span>
                 ))}
               </div>
               {course.related.length > 0 && (
                 <div className="mt-3">
-                  <div className="text-xs font-medium text-slate-400">{fieldLabels.related.en} ／ {fieldLabels.related.ja}</div>
+                  <div className="text-xs font-medium text-slate-400">{t('field.related')}</div>
                   <div className="text-sm text-slate-600 dark:text-slate-300">{course.related.join('、')}</div>
                 </div>
               )}

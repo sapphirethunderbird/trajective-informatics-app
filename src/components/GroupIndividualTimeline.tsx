@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import type { Course, WeekPlan } from '../data/types';
-import { workModeColors, workModeLabels } from '../data/labels';
+import { workModeColors } from '../data/labels';
 import { maxWeekCount } from '../data/aggregate';
 import { Legend } from './Legend';
+import { useLang } from '../i18n/lang';
 
 interface Props {
   courses: Course[];
@@ -15,6 +16,7 @@ interface Hover {
 }
 
 export function GroupIndividualTimeline({ courses, onSelectCourse }: Props) {
+  const { t, courseTitle } = useLang();
   const [hover, setHover] = useState<Hover | null>(null);
   const cols = Math.max(maxWeekCount(courses), 16);
 
@@ -22,13 +24,12 @@ export function GroupIndividualTimeline({ courses, onSelectCourse }: Props) {
     <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
       <div className="mb-1 flex items-baseline justify-between gap-4">
         <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100">
-          Group vs. Individual timeline
-          <span className="ml-2 text-sm font-normal text-slate-400">グループ／個人 タイムライン</span>
+          {t('timelineTitle')}
         </h2>
-        <span className="text-xs text-slate-400">weeks →</span>
+        <span className="text-xs text-slate-400">{t('weeksArrow')}</span>
       </div>
       <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
-        Each row is a course across the semester. Watch for columns where group work stacks up.
+        {t('timelineIntro')}
       </p>
 
       <div className="overflow-x-auto">
@@ -50,9 +51,9 @@ export function GroupIndividualTimeline({ courses, onSelectCourse }: Props) {
               <button
                 onClick={() => onSelectCourse?.(course.id)}
                 className="w-40 shrink-0 truncate text-left text-sm font-medium text-slate-700 hover:text-blue-600 dark:text-slate-200 dark:hover:text-blue-400"
-                title={`${course.titleEn || course.titleJa} · ${course.titleJa}`}
+                title={`${courseTitle(course)} · ${course.titleJa}`}
               >
-                {course.titleEn || course.titleJa}
+                {courseTitle(course)}
               </button>
               <div
                 className="grid flex-1 gap-1"
@@ -69,7 +70,7 @@ export function GroupIndividualTimeline({ courses, onSelectCourse }: Props) {
                       onMouseLeave={() => setHover(null)}
                       className={`h-7 cursor-default rounded-sm transition-transform ${active ? 'scale-110 ring-2 ring-slate-900/40 dark:ring-white/50' : ''}`}
                       style={{ backgroundColor: workModeColors[week.mode] }}
-                      title={`W${week.week} ${week.title} — ${workModeLabels[week.mode].en}`}
+                      title={`W${week.week} ${week.title} — ${t(`mode.${week.mode}`)}`}
                     />
                   );
                 })}
@@ -85,7 +86,7 @@ export function GroupIndividualTimeline({ courses, onSelectCourse }: Props) {
           {hover ? (
             <div className="rounded-lg bg-slate-50 px-3 py-1.5 dark:bg-slate-800">
               <span className="font-semibold" style={{ color: workModeColors[hover.week.mode] }}>
-                W{hover.week.week} · {workModeLabels[hover.week.mode].en}／{workModeLabels[hover.week.mode].ja}
+                W{hover.week.week} · {t(`mode.${hover.week.mode}`)}
               </span>
               <span className="ml-2 text-slate-700 dark:text-slate-200">{hover.week.title}</span>
               {hover.week.content && (
@@ -93,7 +94,7 @@ export function GroupIndividualTimeline({ courses, onSelectCourse }: Props) {
               )}
             </div>
           ) : (
-            <span className="text-slate-400">Hover a cell for details ·　セルにカーソルを合わせると詳細</span>
+            <span className="text-slate-400">{t('hoverHint')}</span>
           )}
         </div>
       </div>

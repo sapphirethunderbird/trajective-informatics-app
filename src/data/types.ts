@@ -34,6 +34,16 @@ export interface GradingItem {
   percent: number;
 }
 
+/** One book listed under 教科書にかかわる情報 / 参考書にかかわる情報. */
+export interface TextbookRef {
+  kind: '教科書' | '参考書';
+  title: string; // 書名
+  author: string; // 著者名
+  publisher: string; // 出版社
+  year: string; // 出版年
+  isbn: string;
+}
+
 export interface Course {
   id: string; // 時間割番号 (timetable no.) as stable key
   year: string; // 開講年度
@@ -46,12 +56,16 @@ export interface Course {
   language: string; // 使用言語
   instructor: string; // 担当教員 責任
   targetYear: string; // 対象年次
+  division: string; // 区分 / 特定科目区分 — often blank in these templates
   overview: string; // 授業の目的と概要
   goals: string; // 授業の到達目標
   goalAspects: GoalAspect[]; // 到達目標 broken down by 観点 (empty when absent)
   weeks: WeekPlan[]; // 授業計画
   al: ALPoints;
   grading: GradingItem[]; // 成績評価法 breakdown
+  textbooks: TextbookRef[]; // 教科書/参考書 entries (empty when the section is a note only)
+  textbookNote: string; // 教科書にかかわる情報 の備考
+  referenceNote: string; // 参考書にかかわる情報 の備考
   keywords: string[]; // キーワード
   sdgs: string[]; // 持続可能な開発目標
   related: string[]; // 関連科目

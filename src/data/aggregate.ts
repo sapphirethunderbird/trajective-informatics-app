@@ -46,6 +46,11 @@ export function averageAL(courses: Course[]): ALPoints {
   };
 }
 
+/** A course "needs a textbook" only when a 教科書 (not merely a 参考書) is listed. */
+export function needsTextbook(course: Course): boolean {
+  return course.textbooks.some((t) => t.kind === '教科書');
+}
+
 export function maxWeekCount(courses: Course[]): number {
   return courses.reduce((m, c) => Math.max(m, c.weeks.length), 0);
 }

@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { clusterRows, type PositionedItem, type Row } from './rowCluster';
 import { parseSyllabus } from './parseSyllabus';
 import { classifyWeek } from './classifyWeek';
+import { needsTextbook } from '../data/aggregate';
 
 const PDF_PATH = fileURLToPath(new URL('../../HCI_syllabus.pdf', import.meta.url));
 const CMAP_URL = fileURLToPath(new URL('../../node_modules/pdfjs-dist/cmaps/', import.meta.url));
@@ -68,6 +69,19 @@ describe('parseSyllabus (HCI fixture)', () => {
       { label: '実践演習の成果', percent: 50 },
       { label: 'プレゼンテーション', percent: 20 },
     ]);
+  });
+
+  it('reads the textbook sections as notes — this course lists no books', async () => {
+    const course = parseSyllabus(await extractRowsNode(PDF_PATH));
+    expect(course.textbooks).toEqual([]);
+    expect(course.textbookNote).toBe('講義資料は適宜Moodleを通じて共有する。');
+    expect(course.referenceNote).toBe('参考資料は必要に応じて講義中に共有または配布する。');
+    expect(needsTextbook(course)).toBe(false);
+  });
+
+  it('leaves 区分 empty rather than picking up the next column label', async () => {
+    const course = parseSyllabus(await extractRowsNode(PDF_PATH));
+    expect(course.division).toBe(''); // 特定科目区分 is blank in this syllabus
   });
 
   it('parses keywords and related courses', async () => {

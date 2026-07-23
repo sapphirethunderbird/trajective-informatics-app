@@ -10,6 +10,7 @@ import { clusterRows, type PositionedItem, type Row } from './rowCluster';
 import { parseSyllabus } from './parseSyllabus';
 import type { Course } from '../data/types';
 import { buildSkillGraph } from '../skills/skills';
+import { needsTextbook } from '../data/aggregate';
 
 const SAMPLES_DIR = fileURLToPath(new URL('../../samples', import.meta.url));
 const CMAP_URL = fileURLToPath(new URL('../../node_modules/pdfjs-dist/cmaps/', import.meta.url));
@@ -78,7 +79,46 @@ describe.skipIf(!existsSync(SAMPLES_DIR))('sample PDFs (2023–2024 templates)',
     expect(c.grading).toContainEqual({ label: '発表・制作作品', percent: 60 });
     // Wrapped 関連科目 lines are re-joined, not split mid-item.
     expect(c.related).toContain('デジタルファブリケーション１（レーザー加工/CNC）');
+    expect(c.division).toBe('STEAM関連科目');
     expect(c.parseWarnings).toEqual([]);
+  });
+
+  it('parses the 参考書 table — titles wrap across the 書名 label row', async () => {
+    const c = await parse('2024_デザイン演習.pdf');
+    expect(c.textbooks).toHaveLength(2);
+    expect(c.textbooks.every((t) => t.kind === '参考書')).toBe(true);
+    expect(needsTextbook(c)).toBe(false); // 参考書 only — no required textbook
+    expect(c.textbooks[0]).toEqual({
+      kind: '参考書',
+      title: 'システム×デザイン思考で世界を変える : 慶応SDM「イノベーションのつくり方」',
+      author: '前野隆司編著',
+      publisher: '日経BP社',
+      year: '2014',
+      isbn: '4822249948',
+    });
+    expect(c.textbooks[1].title).toBe('デザインリサーチの教科書');
+    expect(c.textbooks[1].isbn).toBe('4802511779');
+    // 教科書 section holds only a 備考 for this course.
+    expect(c.textbookNote).toBe('適宜レジュメ等を配付します。');
+  });
+
+  it('keeps 区分 empty when the header cell has no value', async () => {
+    const c = await parse('2023_哲学思考.pdf');
+    expect(c.division).toBe(''); // next cell on the row is the 対象学生 label
+    expect(c.textbookNote).toBe('テキストは使用しない');
+  });
+
+  it('parses STEAM総論 — 単位数 sits far right of its label in the 2026 template', async () => {
+    const c = await parse('2026_STEAM総論.pdf');
+    expect(c.id).toBe('1091011002');
+    expect(c.titleJa).toBe('STEAM総論');
+    expect(c.credits).toBe(1); // 70 units right of the label — outside belowNearest's tolerance
+    expect(c.schedule).toBe('月5～6');
+    expect(c.division).toBe('STEAM関連科目');
+    expect(c.parseWarnings).not.toContain('credits');
+    // 参考書 only, so this course does not require a textbook.
+    expect(c.textbooks.length).toBeGreaterThan(0);
+    expect(needsTextbook(c)).toBe(false);
   });
 
   it('builds a connected skill graph from all four samples', async () => {

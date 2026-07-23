@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { Course } from '../data/types';
 import { buildBlurb, semesterLabel, semesterOrder, type Skill } from '../skills/skills';
+import { useLang } from '../i18n/lang';
 
 interface Props {
   skill: Skill | null;
@@ -11,6 +12,7 @@ interface Props {
 }
 
 function CopyButton({ text }: { text: string }) {
+  const { t } = useLang();
   const [copied, setCopied] = useState(false);
   return (
     <button
@@ -28,12 +30,26 @@ function CopyButton({ text }: { text: string }) {
       }}
       className="rounded-md border border-slate-300 px-2 py-0.5 text-[11px] text-slate-500 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-400 dark:hover:bg-slate-800"
     >
-      {copied ? 'Copied ✓' : 'Copy'}
+      {copied ? t('copied') : t('copy')}
     </button>
   );
 }
 
+function Draft({ code, text }: { code: 'JA' | 'EN'; text: string }) {
+  return (
+    <div className="rounded-lg border border-slate-200 p-2.5 text-xs leading-relaxed text-slate-700 dark:border-slate-700 dark:text-slate-200">
+      <div className="mb-1 flex items-center justify-between">
+        <span className="text-[10px] font-semibold text-slate-400">{code}</span>
+        <CopyButton text={text} />
+      </div>
+      {text}
+    </div>
+  );
+}
+
 export function SkillPanel({ skill, courses, topSkills, onSelectSkill, onSelectCourse }: Props) {
+  const { t, lang, courseTitle } = useLang();
+  const [showOther, setShowOther] = useState(false);
   const mine = useMemo(
     () =>
       skill
@@ -49,14 +65,13 @@ export function SkillPanel({ skill, courses, topSkills, onSelectSkill, onSelectC
     return (
       <aside className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <h2 className="mb-2 text-lg font-semibold text-slate-800 dark:text-slate-100">
-          Talking points <span className="text-sm font-normal text-slate-400">面接で話す材料</span>
+          {t('talkingPoints')}
         </h2>
         <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
-          Pick a skill in the network to see which courses built it, the evidence from each
-          syllabus, and a ready-to-edit interview blurb.
+          {t('talkingPointsIntro')}
         </p>
         <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
-          Most connected ／ よく登場するスキル
+          {t('mostConnected')}
         </h3>
         <div className="flex flex-wrap gap-1.5">
           {topSkills.map((s) => (
@@ -83,7 +98,7 @@ export function SkillPanel({ skill, courses, topSkills, onSelectSkill, onSelectC
               : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-200'
           }`}
         >
-          {skill.type === 'transferable' ? 'Transferable ／ 汎用スキル' : 'Knowledge ／ 知識・技術'}
+          {t(skill.type === 'transferable' ? 'skillTypeTransferable' : 'skillTypeKnowledge')}
         </span>
         <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100">
           {skill.label}
@@ -93,7 +108,7 @@ export function SkillPanel({ skill, courses, topSkills, onSelectSkill, onSelectC
 
       {/* Journey through semesters */}
       <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
-        Where it was built ／ 学んだ科目
+        {t('whereBuilt')}
       </h3>
       <ol className="mb-4 space-y-2">
         {mine.map((c) => {
@@ -106,7 +121,7 @@ export function SkillPanel({ skill, courses, topSkills, onSelectSkill, onSelectC
                 onClick={() => onSelectCourse(c.id)}
                 className="text-sm font-medium text-blue-700 hover:underline dark:text-blue-400"
               >
-                {c.titleJa}
+                {courseTitle(c)}
               </button>
               <span className="ml-2 text-[11px] text-slate-400">{semesterLabel(c)}</span>
               <ul className="mt-1 space-y-0.5 text-xs text-slate-600 dark:text-slate-300">
@@ -125,26 +140,22 @@ export function SkillPanel({ skill, courses, topSkills, onSelectSkill, onSelectC
       {blurb && (
         <>
           <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
-            Interview draft ／ 面接・ES用ドラフト
+            {t('interviewDraft')}
           </h3>
+          {/* The current UI language first; both drafts stay reachable because
+              students apply in both languages. */}
           <div className="space-y-2">
-            <div className="rounded-lg border border-slate-200 p-2.5 text-xs leading-relaxed text-slate-700 dark:border-slate-700 dark:text-slate-200">
-              <div className="mb-1 flex items-center justify-between">
-                <span className="text-[10px] font-semibold text-slate-400">JA</span>
-                <CopyButton text={blurb.ja} />
-              </div>
-              {blurb.ja}
-            </div>
-            <div className="rounded-lg border border-slate-200 p-2.5 text-xs leading-relaxed text-slate-700 dark:border-slate-700 dark:text-slate-200">
-              <div className="mb-1 flex items-center justify-between">
-                <span className="text-[10px] font-semibold text-slate-400">EN</span>
-                <CopyButton text={blurb.en} />
-              </div>
-              {blurb.en}
-            </div>
+            <Draft code={lang === 'ja' ? 'JA' : 'EN'} text={lang === 'ja' ? blurb.ja : blurb.en} />
+            <button
+              onClick={() => setShowOther((v) => !v)}
+              className="text-[11px] text-blue-600 hover:underline dark:text-blue-400"
+            >
+              {showOther ? t('hideOtherDraft') : t('showOtherDraft')}
+            </button>
+            {showOther && <Draft code={lang === 'ja' ? 'EN' : 'JA'} text={lang === 'ja' ? blurb.en : blurb.ja} />}
           </div>
           <p className="mt-2 text-[11px] text-slate-400">
-            Drafted only from what the syllabi say — edit in your own experience before using.
+            {t('draftCaveat')}
           </p>
         </>
       )}

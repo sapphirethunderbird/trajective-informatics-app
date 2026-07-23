@@ -1,6 +1,7 @@
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import type { ALPoints } from '../data/types';
-import { alColors, alLabels } from '../data/labels';
+import { alColors } from '../data/labels';
+import { useLang } from '../i18n/lang';
 
 interface Props {
   al: ALPoints;
@@ -10,7 +11,8 @@ interface Props {
 const KEYS: (keyof ALPoints)[] = ['group', 'discussion', 'fieldwork', 'presentation'];
 
 export function ALPointsChart({ al, size = 160 }: Props) {
-  const data = KEYS.map((k) => ({ key: k, name: alLabels[k].en, value: al[k], color: alColors[k] })).filter(
+  const { t } = useLang();
+  const data = KEYS.map((k) => ({ key: k, name: t(`al.${k}`), value: al[k], color: alColors[k] })).filter(
     (d) => d.value > 0,
   );
   const empty = data.length === 0;
@@ -19,7 +21,7 @@ export function ALPointsChart({ al, size = 160 }: Props) {
     <div className="flex items-center gap-4">
       <div style={{ width: size, height: size }} className="shrink-0">
         {empty ? (
-          <div className="flex h-full items-center justify-center text-xs text-slate-400">no AL data</div>
+          <div className="flex h-full items-center justify-center text-xs text-slate-400">{t('noAlData')}</div>
         ) : (
           <ResponsiveContainer>
             <PieChart>
@@ -48,7 +50,7 @@ export function ALPointsChart({ al, size = 160 }: Props) {
         {KEYS.map((k) => (
           <li key={k} className="flex items-center gap-2">
             <span className="inline-block h-3 w-3 rounded-sm" style={{ backgroundColor: alColors[k] }} />
-            <span className="text-slate-700 dark:text-slate-200">{alLabels[k].en}</span>
+            <span className="text-slate-700 dark:text-slate-200">{t(`al.${k}`)}</span>
             <span className="ml-auto tabular-nums font-medium text-slate-800 dark:text-slate-100">
               {al[k]}%
             </span>
